@@ -1,0 +1,899 @@
+<!-- cat > /home/claude/build_v4.py << 'PYEOF'
+with open('/home/claude/logo_b64.txt', 'r') as f:
+    logo_b64 = f.read().strip()
+logo_src = f"data:image/jpeg;base64,{logo_b64}"
+
+# IMPORTANT: Apps Script URL hardcoded - user will replace after deployment
+APPS_SCRIPT_URL = "REPLACE_WITH_YOUR_APPS_SCRIPT_URL" -->
+
+html = r'''<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EOLITH — Production & Dispatch Planner v4</title>
+<style>
+:root{
+  --black:#0d0d0d;--off:#f7f5f2;--stone:#8a8480;--pale:#ede9e3;
+  --border:#d5d0c9;--card:#fff;--sh:0 2px 16px rgba(0,0,0,.07);
+  --green:#2e7d4f;--red:#b0291c;--amber:#b97326;--blue:#185fa5;--purple:#534ab7;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--off);color:var(--black);min-height:100vh;}
+.bg-wm{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:0;}
+.bg-wm img{width:50%;max-width:550px;opacity:0.04;filter:grayscale(1);}
+header{position:relative;z-index:10;background:var(--black);border-bottom:2px solid #222;padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:64px;}
+.h-logo img{height:28px;filter:invert(1);opacity:.95;}
+.h-co{font-size:.58rem;font-weight:700;letter-spacing:.22em;color:#aaa;text-transform:uppercase;display:block;}
+.h-sys{font-size:.75rem;font-weight:600;letter-spacing:.06em;color:var(--off);}
+.h-right{text-align:right;}
+.h-name{font-size:.65rem;font-weight:700;color:#aaa;letter-spacing:.08em;text-transform:uppercase;display:block;}
+.h-role{font-size:.55rem;color:#555;letter-spacing:.06em;text-transform:uppercase;}
+
+/* TABS */
+.tabs{position:relative;z-index:5;background:var(--black);display:flex;border-top:1px solid #222;padding:0 20px;overflow-x:auto;}
+.tab{font-size:.72rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#666;padding:9px 14px;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;}
+.tab.active{color:var(--off);border-bottom-color:var(--off);}
+.tab:hover:not(.active){color:#aaa;}
+
+.main{max-width:1200px;margin:0 auto;padding:20px 14px 60px;position:relative;z-index:1;}
+.pane{display:none;}.pane.active{display:block;}
+.sec{font-size:.6rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--stone);border-left:2.5px solid var(--black);padding-left:8px;margin-bottom:12px;margin-top:20px;}
+
+/* INFO BOX */
+.info-box{background:#e8f4fd;border:1.5px solid #90caf9;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:.78rem;color:#0d47a1;line-height:1.6;}
+.info-box strong{color:#0d47a1;}
+.warn-box{background:#fff8e1;border:1.5px solid #ffe082;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:.78rem;color:#e65100;line-height:1.6;}
+
+/* CARDS */
+.card{background:var(--card);border:1.5px solid var(--border);border-radius:8px;padding:14px 16px;box-shadow:var(--sh);margin-bottom:14px;}
+.fld label{display:block;font-size:.63rem;font-weight:700;color:var(--stone);letter-spacing:.07em;text-transform:uppercase;margin-bottom:4px;}
+input[type="text"],input[type="number"],input[type="tel"],select,textarea{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:5px;font-size:.88rem;background:#fff;color:var(--black);outline:none;transition:border-color .15s;}
+input:focus,select:focus,textarea:focus{border-color:var(--black);}
+input[type="number"]{-moz-appearance:textfield;}
+input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-inner-spin-button{display:none;}
+textarea{resize:vertical;min-height:56px;font-size:.82rem;}
+
+/* SETTINGS GRID */
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.sg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;}
+.sg-full{grid-column:1/-1;}
+
+/* BUTTONS */
+.btn{border:none;border-radius:5px;padding:9px 18px;font-size:.82rem;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.04em;}
+.btn-black{background:var(--black);color:#fff;}.btn-black:hover{background:#333;}
+.btn-outline{background:none;border:1.5px solid var(--black);color:var(--black);}.btn-outline:hover{background:var(--black);color:#fff;}
+.btn-green{background:#25d366;color:#fff;}.btn-green:hover{background:#1aab52;}
+.btn-blue{background:var(--blue);color:#fff;}.btn-blue:hover{background:#0c4483;}
+.btn-red{background:var(--red);color:#fff;}.btn-red:hover{background:#8b1a13;}
+.btn-amber{background:var(--amber);color:#fff;}.btn-amber:hover{background:#8a5315;}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+
+/* PLAN ROWS */
+.plan-rows{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+.plan-row{background:var(--card);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;display:grid;grid-template-columns:24px 1fr 1fr 1fr 1fr 28px;gap:8px;align-items:end;box-shadow:var(--sh);}
+.rn{font-size:.7rem;font-weight:800;color:var(--stone);padding-top:20px;text-align:center;}
+.range-row{display:flex;gap:5px;align-items:center;}
+.range-row input{flex:1;}
+.rm-btn{background:none;border:1.5px solid var(--border);border-radius:5px;color:var(--stone);cursor:pointer;font-size:.85rem;padding:6px 0;width:100%;transition:all .15s;align-self:end;}
+.rm-btn:hover{background:var(--red);color:#fff;border-color:var(--red);}
+
+/* RESULT */
+.result-wrap{display:none;}.result-wrap.show{display:block;}
+.sum-bar{background:var(--black);color:var(--off);border-radius:10px;padding:16px 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:14px;}
+.stat{background:rgba(255,255,255,.05);border-radius:6px;padding:9px 11px;}
+.stat .v{font-size:1.25rem;font-weight:800;color:#fff;line-height:1;margin-bottom:3px;}
+.stat .v.g{color:#4ade80;}.stat .v.a{color:#fbbf24;}.stat .v.r{color:#f87171;}
+.stat .lbl{font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:#999;}
+.shift-banner{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.sc{border-radius:8px;padding:12px 14px;display:flex;align-items:center;gap:10px;}
+.sc.day{background:#fefce8;border:1.5px solid #fde047;}
+.sc.night{background:#0f172a;border:1.5px solid #1e3a5f;}
+.sh-lbl{font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;}
+.sc.day .sh-lbl{color:#854d0e;}.sc.night .sh-lbl{color:#60a5fa;}
+.sh-t{font-size:.72rem;font-weight:600;margin-bottom:1px;}
+.sc.day .sh-t{color:#713f12;}.sc.night .sh-t{color:#93c5fd;}
+.sh-p{font-size:.9rem;font-weight:800;}
+.sc.day .sh-p{color:#92400e;}.sc.night .sh-p{color:#fff;}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:.76rem;margin-bottom:14px;}
+.tbl th{background:#f4f0ea;color:var(--stone);font-size:.58rem;letter-spacing:.09em;text-transform:uppercase;padding:7px 9px;text-align:left;border-bottom:1.5px solid var(--border);}
+.tbl td{padding:8px 9px;border-bottom:1px solid var(--pale);color:var(--black);vertical-align:middle;}
+.tbl tr:hover td{background:var(--pale);}
+.tag{display:inline-block;background:var(--black);color:#fff;font-size:.58rem;font-weight:800;padding:2px 6px;border-radius:3px;}
+.pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:700;}
+.pill-g{background:#dcfce7;color:#166534;}.pill-a{background:#fef3c7;color:#92400e;}.pill-r{background:#fee2e2;color:#991b1b;}
+.bar-bg{background:var(--pale);border-radius:3px;height:5px;overflow:hidden;width:70px;}
+.bar-fill{height:5px;border-radius:3px;}
+.grand{background:var(--black);color:#fff;border-radius:8px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+.gt-l{font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#aaa;}
+.gt-v{font-size:1.2rem;font-weight:900;color:#fff;margin-top:1px;}
+.gtpill{display:inline-block;padding:4px 12px;border-radius:20px;font-size:.8rem;font-weight:800;}
+
+/* PREDICT */
+.predict-box{border-radius:10px;padding:14px 18px;margin-bottom:14px;border:2px solid;}
+.predict-ok{background:#f0fdf4;border-color:#22c55e;}
+.predict-warn{background:#fffbeb;border-color:#f59e0b;}
+.predict-danger{background:#fef2f2;border-color:#ef4444;}
+.predict-title{font-size:.85rem;font-weight:800;margin-bottom:6px;}
+.predict-ok .predict-title{color:#166534;}.predict-warn .predict-title{color:#92400e;}.predict-danger .predict-title{color:#991b1b;}
+.predict-body{font-size:.76rem;color:var(--stone);line-height:1.6;}
+.predict-body strong{color:var(--black);}
+
+/* WA PREVIEW */
+.wa-preview{background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:.76rem;font-family:monospace;white-space:pre-wrap;color:#166534;line-height:1.6;max-height:250px;overflow-y:auto;}
+
+/* DISPATCH STATUS TABLE */
+.ds-tbl{width:100%;border-collapse:collapse;font-size:.75rem;}
+.ds-tbl th{background:#212121;color:#fff;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;padding:8px 10px;text-align:left;}
+.ds-tbl td{padding:8px 10px;border-bottom:1px solid var(--pale);vertical-align:middle;}
+.ds-tbl tr:hover td{background:var(--pale);}
+.ds-tbl tr:nth-child(even) td{background:#f9f9f9;}
+.ds-tbl tr:nth-child(even):hover td{background:var(--pale);}
+.sb{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.65rem;font-weight:700;}
+.sb-done{background:#dcfce7;color:#166534;}
+.sb-pending{background:#fef3c7;color:#92400e;}
+.sb-notdone{background:#fee2e2;color:#991b1b;}
+.sb-partial{background:#e0e7ff;color:#3730a3;}
+
+/* HISTORY */
+.hist-item{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:11px 13px;margin-bottom:7px;box-shadow:var(--sh);}
+.hist-hdr{display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.hist-title{font-size:.76rem;font-weight:700;}
+.hist-time{font-size:.62rem;color:var(--stone);}
+.hist-body{display:none;border-top:1px solid var(--border);padding-top:8px;margin-top:7px;}
+.hist-body.open{display:block;}
+.hr{font-size:.7rem;color:var(--stone);padding:2px 0;}
+.hr strong{color:var(--black);}
+
+/* TOAST */
+.toast-wrap{position:fixed;top:12px;right:12px;z-index:9999;display:flex;flex-direction:column;gap:6px;}
+.toast{background:var(--black);color:#fff;border-radius:8px;padding:10px 16px;font-size:.8rem;font-weight:600;opacity:0;transform:translateY(-8px);transition:all .28s;pointer-events:none;max-width:320px;}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.g{background:#166534;}.toast.r{background:var(--red);}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal{background:#fff;border-radius:12px;padding:22px 24px;width:90%;max-width:560px;max-height:90vh;overflow-y:auto;}
+.modal h3{font-size:1rem;font-weight:800;margin-bottom:14px;color:var(--black);}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
+
+/* SELECT STYLED */
+.status-sel{padding:4px 8px;border:1.5px solid var(--border);border-radius:4px;font-size:.72rem;background:#fff;cursor:pointer;}
+
+@media(max-width:650px){
+  .plan-row{grid-template-columns:1fr 1fr;gap:6px;}
+  .rn{display:none;}
+  .plan-row .rm-btn{grid-column:span 2;}
+  .sg{grid-template-columns:1fr;}.sg3{grid-template-columns:1fr;}
+  .shift-banner{grid-template-columns:1fr;}
+  .sum-bar{grid-template-columns:1fr 1fr;}
+  .modal-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- ADD DISPATCH STATUS MODAL -->
+<div class="modal-overlay" id="addStatusModal">
+  <div class="modal">
+    <h3>📦 Dispatch Status Entry Add Karein</h3>
+    <div class="modal-grid">
+      <div class="fld"><label>Plan Date</label><input type="text" id="ms_planDate" placeholder="02-07-2026"></div>
+      <div class="fld"><label>Dispatch Date</label><input type="text" id="ms_dispDate" placeholder="10-07-2026"></div>
+      <div class="fld"><label>Party Name</label><input type="text" id="ms_party" placeholder="Sharma Traders"></div>
+      <div class="fld"><label>Material Size (mm)</label>
+        <select id="ms_size">
+          <option>20</option><option>30</option><option>40</option>
+          <option>50</option><option>75</option><option>80</option>
+          <option>100</option><option>150</option>
+        </select>
+      </div>
+      <div class="fld"><label>Description</label><input type="text" id="ms_desc" placeholder="Special order / Normal"></div>
+      <div class="fld"><label>Order Quantity (Sq Ft)</label><input type="number" id="ms_orderQty" placeholder="1000"></div>
+      <div class="fld"><label>Balance Quantity (Sq Ft)</label><input type="number" id="ms_balQty" placeholder="500"></div>
+      <div class="fld"><label>Production Status</label>
+        <select id="ms_prodStatus">
+          <option value="Done">✅ Done</option>
+          <option value="Not Done">❌ Not Done</option>
+          <option value="In Progress">🔄 In Progress</option>
+          <option value="Partial">⚡ Partial</option>
+        </select>
+      </div>
+      <div class="fld"><label>Packing Status</label>
+        <select id="ms_packStatus">
+          <option value="Done">✅ Done</option>
+          <option value="Not Done">❌ Not Done</option>
+          <option value="In Progress">🔄 In Progress</option>
+        </select>
+      </div>
+      <div class="fld"><label>Dispatch Status</label>
+        <select id="ms_dispStatus">
+          <option value="Dispatched">🚚 Dispatched</option>
+          <option value="Pending">🟡 Pending</option>
+          <option value="Delayed">🔴 Delayed</option>
+          <option value="Ready">🟢 Ready</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-black" onclick="saveStatusEntry()">💾 Save to Sheet</button>
+    </div>
+  </div>
+</div>
+
+<div class="bg-wm"><img src="LOGO_SRC" alt=""></div>
+
+<header>
+  <div class="h-logo"><img src="LOGO_SRC" alt="EOLITH"></div>
+  <div style="text-align:center">
+    <span class="h-co">Eolith Natural Stone Private Limited</span>
+    <span class="h-sys">Production & Dispatch Planner v4</span>
+  </div>
+  <div class="h-right">
+    <span class="h-name" id="hdr-name">Yagyansh</span>
+    <span class="h-role">MIS Executive</span>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('plan')">⚙ Planning</div>
+  <div class="tab" onclick="switchTab('dispatch')">🚚 Dispatch Status</div>
+  <div class="tab" onclick="switchTab('history')">📋 History</div>
+  <div class="tab" onclick="switchTab('settings')">⚙ Settings</div>
+</div>
+
+<div class="main">
+
+<!-- ─── PLANNING ────────────────────────────────── -->
+<div class="pane active" id="pane-plan">
+  <div class="sec">Production Planning — Multiple Size & Machine</div>
+  <div class="plan-rows" id="planRows"></div>
+  <div class="btn-row" style="margin-bottom:12px;">
+    <button class="btn btn-outline" onclick="addRow()">+ Add Row</button>
+    <button class="btn btn-black" onclick="calculate()">⚙ Calculate All</button>
+    <button class="btn btn-blue" onclick="saveToSheet()">📊 Save to Sheet</button>
+    <button class="btn btn-green" onclick="sendWhatsApp()">💬 WhatsApp</button>
+    <button class="btn btn-outline" style="border-color:#ccc;color:#999" onclick="clearAll()">✕ Clear</button>
+  </div>
+
+  <div class="result-wrap" id="resultWrap">
+    <div class="sec" style="margin-top:20px;">Result</div>
+    <div class="sum-bar" id="sumBar"></div>
+    <div class="shift-banner" id="shiftBanner"></div>
+
+    <div class="sec">Dispatch Prediction</div>
+    <div id="predictBox"></div>
+
+    <div class="sec">Per-Order Breakdown</div>
+    <table class="tbl">
+      <thead><tr><th>#</th><th>Size</th><th>BC</th><th>Target</th><th>Output/24hr</th><th>Time</th><th>Day Shift</th><th>Night Shift</th><th>%</th></tr></thead>
+      <tbody id="multiBody"></tbody>
+    </table>
+
+    <div class="grand" id="grandTotal"></div>
+
+    <div class="sec">WhatsApp Message Preview</div>
+    <div class="wa-preview" id="waPreview"></div>
+    <div class="btn-row">
+      <button class="btn btn-blue" onclick="saveToSheet()">📊 Save to Google Sheet</button>
+      <button class="btn btn-green" onclick="sendWhatsApp()">💬 Send via WhatsApp</button>
+      <button class="btn btn-amber" onclick="openAddStatusModal()">📦 Add to Dispatch Status</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── DISPATCH STATUS ──────────────────────────── -->
+<div class="pane" id="pane-dispatch">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:8px;margin-bottom:4px;">
+    <div class="sec" style="margin:0;">Dispatch Monthly Planning Status</div>
+    <div class="btn-row" style="margin:0;">
+      <button class="btn btn-black" onclick="openAddStatusModal()">+ Add Entry</button>
+      <button class="btn btn-green" onclick="sendDispatchWA()">💬 WhatsApp Schedule</button>
+      <button class="btn btn-blue" onclick="loadDispatchStatus()">🔄 Refresh from Sheet</button>
+    </div>
+  </div>
+  <p style="font-size:.7rem;color:var(--stone);margin-bottom:10px;">Yahan Google Sheet ke "Dispatch Monthly Planning Status" tab ka data dikhega. Status update karo — directly Sheet mein save hoga.</p>
+
+  <div id="dispatchStatusWrap">
+    <div class="warn-box">⏳ "Refresh from Sheet" click karein data load karne ke liye.</div>
+  </div>
+</div>
+
+<!-- ─── HISTORY ──────────────────────────────────── -->
+<div class="pane" id="pane-history">
+  <div class="sec">Last 5 Planning History</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <span style="font-size:.7rem;color:var(--stone);">Click to expand any entry</span>
+    <button onclick="clearHistory()" style="font-size:.7rem;color:var(--red);background:none;border:none;cursor:pointer;font-weight:700;">Clear All History</button>
+  </div>
+  <div id="histList"></div>
+</div>
+
+<!-- ─── SETTINGS ─────────────────────────────────── -->
+<div class="pane" id="pane-settings">
+
+  <div class="info-box" style="margin-top:8px;">
+    ℹ️ <strong>Settings kaise kaam karte hain:</strong> Yahan sirf <strong>WhatsApp number</strong> aur <strong>WhatsApp Group ID</strong> change hoga. Baki sab (Google Sheet, GreenAPI credentials, Company name) already code mein set hai — aapko baar baar dalna nahi padega.
+  </div>
+
+  <div class="sec">WhatsApp Settings (Editable)</div>
+  <div class="card">
+    <div class="sg">
+      <div class="fld"><label>📱 WhatsApp Number (91XXXXXXXXXX)</label>
+        <input type="tel" id="s_waNum" placeholder="919773373977">
+        <p style="font-size:.65rem;color:var(--stone);margin-top:3px;">Jis number par message bhejana hai</p>
+      </div>
+      <div class="fld"><label>👥 WhatsApp Group ID (optional)</label>
+        <input type="text" id="s_waGroup" placeholder="919413372085-1624684417@g.us">
+        <p style="font-size:.65rem;color:var(--stone);margin-top:3px;">Group mein bhejna ho toh — akela number wala khali chhod sakte hain</p>
+      </div>
+    </div>
+    <button class="btn btn-black" onclick="saveWASettings()">💾 Save WhatsApp Settings</button>
+  </div>
+
+  <div class="sec">System Info (Read Only)</div>
+  <div class="card">
+    <div class="sg3">
+      <div class="fld"><label>Google Sheet</label>
+        <input type="text" value="Dispatch Planning Sheet (hardcoded)" readonly style="background:#f4f4f4;color:#888;">
+      </div>
+      <div class="fld"><label>GreenAPI Instance</label>
+        <input type="text" id="info_waId" readonly style="background:#f4f4f4;color:#888;">
+      </div>
+      <div class="fld"><label>Apps Script</label>
+        <input type="text" id="info_scriptUrl" readonly style="background:#f4f4f4;color:#888;font-size:.7rem;">
+      </div>
+    </div>
+    <p style="font-size:.7rem;color:var(--stone);margin-top:6px;">Inhe change karne ke liye HTML code update karna hoga (ek baar ki process).</p>
+  </div>
+
+  <div class="sec">Connection Test</div>
+  <div class="card">
+    <div class="btn-row">
+      <button class="btn btn-blue" onclick="testSheet()">🔗 Test Google Sheet</button>
+      <button class="btn btn-green" onclick="testWA()">💬 Test WhatsApp</button>
+    </div>
+    <div id="testResult" style="margin-top:10px;font-size:.78rem;"></div>
+  </div>
+
+  <div class="sec">Apps Script Code (Google Sheet mein paste karein)</div>
+  <div class="card">
+    <p style="font-size:.72rem;color:var(--stone);margin-bottom:8px;line-height:1.5;">Yeh code Google Apps Script mein paste karein. <strong>SHEET_ID pehle se set hai</strong> — sirf deploy karein.</p>
+    <textarea id="scriptCodeBox" readonly style="font-size:.68rem;font-family:monospace;height:180px;background:#f4f0ea;"></textarea>
+    <button class="btn btn-outline" style="margin-top:8px;" onclick="copyScriptCode()">📋 Copy Code</button>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// HARDCODED CONFIG — Yeh ek baar set karo, baar baar nahi dalein
+// ═══════════════════════════════════════════════════════════════
+const CFG = {
+  // Google Apps Script Deploy URL — NEECHE APNA URL DAALEN
+  scriptUrl: 'APPS_SCRIPT_URL_PLACEHOLDER',
+
+  // GreenAPI Credentials
+  waId: '7105308212',
+  waToken: '780ebad969504acdbbc6067d824d3b91665dfeebae0e4da9a8',
+
+  // Company Info
+  company: 'Eolith Natural Stone Pvt Ltd',
+  mis: 'Yagyansh',
+  location: 'Jhalawar'
+};
+
+// WhatsApp numbers — Settings mein change hota hai
+function getWA() {
+  return {
+    num: localStorage.getItem('wa_num') || '',
+    group: localStorage.getItem('wa_group') || ''
+  };
+}
+function saveWASettings() {
+  localStorage.setItem('wa_num', document.getElementById('s_waNum').value.trim());
+  localStorage.setItem('wa_group', document.getElementById('s_waGroup').value.trim());
+  toast('WhatsApp settings save ho gayi! ✅', 'g');
+}
+function loadWASettings() {
+  const wa = getWA();
+  document.getElementById('s_waNum').value = wa.num;
+  document.getElementById('s_waGroup').value = wa.group;
+  document.getElementById('info_waId').value = CFG.waId;
+  document.getElementById('info_scriptUrl').value =
+    CFG.scriptUrl.length > 60 ? CFG.scriptUrl.slice(0,60)+'...' : CFG.scriptUrl;
+  document.getElementById('hdr-name').textContent = CFG.mis;
+}
+
+// ═══════ BC DATA ═════════════════════════════════════════════
+const BC_DATA = {
+  BC1:{sizes:{20:[900,1100],30:[700,900],40:[600,800],50:[600,800],100:[300,400],150:[300,400]}},
+  BC2:{sizes:{20:[900,1100],30:[700,900],40:[600,800],50:[600,800],100:[300,400],150:[300,400]}},
+  BC3:{sizes:{20:[600,900],30:[600,900],40:[600,900],50:[600,900],100:[300,400],150:[300,400]}},
+  BC4:{sizes:{20:[800,1000],30:[700,900],40:[600,800],50:[600,800],100:[300,400],150:[300,400]}},
+  BC5:{wastage:true,sizes:{20:[250,300],30:[250,300],40:[250,300],50:[250,300],100:[250,300],150:[250,300]}},
+  BC6:{wastage:true,sizes:{20:[300,350],30:[300,350],40:[300,350],50:[300,350],100:[300,350],150:[300,350]}},
+  BC7:{sizes:{20:[900,1100],30:[700,900],40:[600,800],50:[600,800],100:[300,400],150:[300,400]}},
+  BC8:{sizes:{20:[900,1100],30:[700,900],40:[600,800],50:[600,800],100:[300,400],150:[300,400]}}
+};
+const SIZES=[20,30,40,50,100,150];
+const BCS=Object.keys(BC_DATA);
+let rowCount=0, lastResults=[];
+
+// ═══════ TABS ════════════════════════════════════════════════
+function switchTab(t){
+  const names=['plan','dispatch','history','settings'];
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',names[i]===t));
+  document.querySelectorAll('.pane').forEach(el=>el.classList.remove('active'));
+  document.getElementById('pane-'+t).classList.add('active');
+  if(t==='history') renderHistory();
+  if(t==='dispatch') loadDispatchStatus();
+}
+
+// ═══════ PLAN ROWS ═══════════════════════════════════════════
+function addRow(){
+  rowCount++;
+  const id=rowCount;
+  const c=document.getElementById('planRows');
+  const d=document.createElement('div');
+  d.className='plan-row'; d.id='row_'+id;
+  d.innerHTML=`
+    <div class="rn">${id}</div>
+    <div class="fld"><label>Size (mm)</label>
+      <select id="sz_${id}" onchange="syncMM(${id})">
+        ${SIZES.map(s=>`<option value="${s}">${s}mm</option>`).join('')}
+      </select></div>
+    <div class="fld"><label>Block Cutter</label>
+      <select id="bc_${id}" onchange="syncMM(${id})">
+        ${BCS.map(b=>`<option value="${b}">${b}${BC_DATA[b].wastage?' ♻':''}</option>`).join('')}
+      </select></div>
+    <div class="fld"><label>Target (Sq Ft)</label>
+      <input type="number" id="qty_${id}" value="1000" min="1"></div>
+    <div class="fld"><label id="rl_${id}">Output/24hr (Sq Ft)</label>
+      <div class="range-row">
+        <input type="number" id="mn_${id}">
+        <span style="color:#aaa;font-weight:700;">–</span>
+        <input type="number" id="mx_${id}">
+      </div></div>
+    <button class="rm-btn" onclick="removeRow(${id})">✕</button>`;
+  c.appendChild(d);
+  syncMM(id);
+}
+function syncMM(id){
+  const sz=parseInt(document.getElementById('sz_'+id).value);
+  const bc=document.getElementById('bc_'+id).value;
+  const [mn,mx]=BC_DATA[bc].sizes[sz];
+  document.getElementById('mn_'+id).value=mn;
+  document.getElementById('mx_'+id).value=mx;
+  document.getElementById('rl_'+id).textContent=(BC_DATA[bc].wastage?'♻ Wastage':'Output')+'/24hr (Sq Ft)';
+}
+function removeRow(id){const el=document.getElementById('row_'+id);if(el)el.remove();}
+function clearAll(){
+  document.getElementById('planRows').innerHTML='';
+  document.getElementById('resultWrap').classList.remove('show');
+  rowCount=0; lastResults=[];
+}
+
+// ═══════ CALCULATE ════════════════════════════════════════════
+function calculate(){
+  const rows=document.querySelectorAll('.plan-row');
+  if(!rows.length){alert('Pehle rows add karein.');return;}
+  const orders=[];
+  rows.forEach(row=>{
+    const id=row.id.replace('row_','');
+    const sz=document.getElementById('sz_'+id);
+    if(!sz)return;
+    const mn=Number(document.getElementById('mn_'+id).value);
+    const mx=Number(document.getElementById('mx_'+id).value);
+    const qty=Number(document.getElementById('qty_'+id).value);
+    if(!qty||qty<=0)return;
+    orders.push({id,size:sz.value,bc:document.getElementById('bc_'+id).value,qty,min:mn,max:mx,avg:(mn+mx)/2});
+  });
+  const fmtH=h=>{
+    if(!isFinite(h)||h<=0)return '0h';
+    const hh=Math.floor(h),mm=Math.round((h-hh)*60);
+    const d=Math.floor(hh/24),rh=hh%24;
+    return d>0?`${d}d ${rh}h${mm?' '+mm+'m':''}`:`${hh}h${mm?' '+mm+'m':''}`;
+  };
+  const results=orders.map(o=>{
+    const hAvg=o.avg>0?(o.qty/o.avg)*24:0;
+    const hBest=o.max>0?(o.qty/o.max)*24:0;
+    const hWorst=o.min>0?(o.qty/o.min)*24:0;
+    return{...o,hAvg,hBest,hWorst,dayProd:Math.round(o.avg/24*12),nightProd:Math.round(o.avg/24*12)};
+  });
+  lastResults=results;
+  const totalQty=orders.reduce((s,o)=>s+o.qty,0);
+  const maxHrs=results.reduce((m,r)=>r.hAvg>m?r.hAvg:m,0);
+  const totalAvg24=orders.reduce((s,o)=>s+o.avg,0);
+  const sCls=maxHrs<=12?'g':maxHrs<=24?'a':'r';
+
+  document.getElementById('sumBar').innerHTML=`
+    <div class="stat"><div class="v ${sCls}">${fmtH(maxHrs)}</div><div class="lbl">Max Time</div></div>
+    <div class="stat"><div class="v">${totalQty.toLocaleString()}</div><div class="lbl">Total Sq Ft</div></div>
+    <div class="stat"><div class="v">${results.length}</div><div class="lbl">Active BCs</div></div>
+    <div class="stat"><div class="v">${results.filter(r=>r.hAvg<=12).length}/${results.length}</div><div class="lbl">1 Shift Mein</div></div>
+    <div class="stat"><div class="v">${Math.round(totalAvg24).toLocaleString()}</div><div class="lbl">Capacity/24hr</div></div>
+    <div class="stat"><div class="v">${new Date().toLocaleDateString('en-IN')}</div><div class="lbl">Date</div></div>`;
+
+  const tD=results.reduce((s,r)=>s+r.dayProd,0);
+  const tN=results.reduce((s,r)=>s+r.nightProd,0);
+  document.getElementById('shiftBanner').innerHTML=`
+    <div class="sc day"><div style="font-size:1.5rem">☀️</div><div>
+      <div class="sh-lbl">Day Shift</div><div class="sh-t">8:00 AM – 8:00 PM (12 Hr)</div>
+      <div class="sh-p">~${tD.toLocaleString()} Sq Ft</div></div></div>
+    <div class="sc night"><div style="font-size:1.5rem">🌙</div><div>
+      <div class="sh-lbl">Night Shift</div><div class="sh-t">8:00 PM – 8:00 AM (12 Hr)</div>
+      <div class="sh-p">~${tN.toLocaleString()} Sq Ft</div></div></div>`;
+
+  // Prediction
+  let pCls,pTitle,pBody;
+  if(maxHrs<=12){pCls='predict-ok';pTitle='✅ 1 Shift Mein Complete Hoga';pBody=`Sabse lamba order <strong>${fmtH(maxHrs)}</strong> mein complete — aaj dispatch possible!`;}
+  else if(maxHrs<=24){pCls='predict-warn';pTitle='⚠ Dono Shifts Lagegi — Kal Dispatch';pBody=`<strong>${fmtH(maxHrs)}</strong> chahiye. Day + Night dono shifts mein production karo.`;}
+  else{
+    const d=Math.ceil(maxHrs/24);
+    pCls='predict-danger';pTitle=`🔴 Delay — ${d} Din Chahiye`;
+    pBody=`Current capacity par <strong>${fmtH(maxHrs)}</strong>.<br>Options: Extra BC lagao • Quantity reduce karo • Dispatch date badhao`;
+  }
+  document.getElementById('predictBox').innerHTML=`<div class="${pCls} predict-box"><div class="predict-title">${pTitle}</div><div class="predict-body">${pBody}</div></div>`;
+
+  // Table
+  const tbody=document.getElementById('multiBody');
+  tbody.innerHTML='';
+  results.forEach((r,i)=>{
+    const pct=maxHrs>0?Math.round((r.hAvg/maxHrs)*100):0;
+    const pc=r.hAvg<=12?'pill-g':r.hAvg<=24?'pill-a':'pill-r';
+    tbody.innerHTML+=`<tr>
+      <td style="color:var(--stone);font-weight:700;">${i+1}</td>
+      <td><span class="tag">${r.size}mm</span></td>
+      <td><strong>${r.bc}</strong>${BC_DATA[r.bc].wastage?'<br><span style="font-size:.6rem;color:var(--amber);">♻</span>':''}</td>
+      <td><strong>${r.qty.toLocaleString()}</strong></td>
+      <td>${r.min.toLocaleString()}–${r.max.toLocaleString()}<br><span style="font-size:.62rem;color:var(--stone);">avg ${Math.round(r.avg).toLocaleString()}</span></td>
+      <td><span class="pill ${pc}">${fmtH(r.hAvg)}</span><br><span style="font-size:.6rem;color:var(--stone);">${fmtH(r.hBest)}–${fmtH(r.hWorst)}</span></td>
+      <td>~${r.dayProd.toLocaleString()}</td>
+      <td>~${r.nightProd.toLocaleString()}</td>
+      <td><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${r.hAvg<=12?'#22c55e':r.hAvg<=24?'#f59e0b':'#ef4444'}"></div></div></td>
+    </tr>`;
+  });
+
+  const lr=results.reduce((a,b)=>a.hAvg>b.hAvg?a:b);
+  const gpCls=maxHrs<=12?'background:#dcfce7;color:#166534':maxHrs<=24?'background:#fef3c7;color:#92400e':'background:#fee2e2;color:#991b1b';
+  document.getElementById('grandTotal').innerHTML=`
+    <div><div class="gt-l">Total</div><div class="gt-v">${totalQty.toLocaleString()} Sq Ft</div></div>
+    <div><div class="gt-l">Longest BC</div><div class="gt-v" style="font-size:.9rem;">${lr.bc}·${lr.size}mm</div></div>
+    <div><div class="gt-l">Max Time</div><div class="gt-v">${fmtH(maxHrs)}</div></div>
+    <div><span class="gtpill" style="${gpCls}">${maxHrs<=12?'✓ 1 Shift':maxHrs<=24?'~ 1 Din':'⚠ 1+ Din'}</span></div>`;
+
+  buildWAMsg(results,totalQty,maxHrs,fmtH);
+  document.getElementById('resultWrap').classList.add('show');
+  saveHistory(results,totalQty,maxHrs);
+}
+
+function buildWAMsg(results,totalQty,maxHrs,fmtH){
+  const dt=new Date().toLocaleDateString('en-IN');
+  const tm=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  let msg=`🏭 *${CFG.company.toUpperCase()}*\n📋 Production Planning Report\n📅 ${dt} | ${tm}\n👤 MIS: ${CFG.mis}\n${'─'.repeat(28)}\n\n`;
+  results.forEach((r,i)=>{
+    msg+=`${i+1}. *${r.bc}* → ${r.size}mm · ${r.qty.toLocaleString()} Sq Ft\n`;
+    msg+=`   ⏱ ${fmtH(r.hAvg)} | 📊 ${r.min}–${r.max} Sq Ft/24hr\n`;
+    msg+=`   ☀️ Day ~${r.dayProd.toLocaleString()} | 🌙 Night ~${r.nightProd.toLocaleString()} Sq Ft\n\n`;
+  });
+  msg+=`${'─'.repeat(28)}\n📊 *Total: ${totalQty.toLocaleString()} Sq Ft*\n⏰ *Max Time: ${fmtH(maxHrs)}*\n`;
+  const pred=maxHrs<=12?'✅ 1 Shift mein':maxHrs<=24?'⚠ Dono Shifts':'🔴 1 Din Se Zyada';
+  msg+=`🔮 *${pred}*\n\n_Eolith Production Planner v4_`;
+  document.getElementById('waPreview').textContent=msg;
+  return msg;
+}
+
+// ═══════ SHEET SAVE ═══════════════════════════════════════════
+async function saveToSheet(){
+  if(!lastResults.length){toast('Pehle calculate karein!','r');return;}
+  if(!CFG.scriptUrl||CFG.scriptUrl.includes('PLACEHOLDER')){
+    toast('Apps Script URL set nahi hai! Code update karein.','r');return;
+  }
+  toast('Google Sheet mein save ho raha hai...','');
+  const dt=new Date().toLocaleDateString('en-IN');
+  const tm=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  const planId='PLN-'+Date.now().toString().slice(-6);
+  const rows=lastResults.map(r=>[
+    dt,tm,planId,r.size,r.bc,r.qty,r.min,r.max,
+    Math.round(r.hAvg*10)/10,r.dayProd,r.nightProd,
+    r.hAvg<=12?'1 Shift':r.hAvg<=24?'2 Shifts':'Delay Risk',CFG.mis
+  ]);
+  try{
+    const res=await fetch(CFG.scriptUrl,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'saveProduction',rows})});
+    const d=await res.json();
+    if(d.status==='ok') toast(`✅ Sheet mein ${d.saved} rows save ho gayi!`,'g');
+    else toast('❌ Error: '+d.msg,'r');
+  }catch(e){toast('❌ Connection error — Apps Script URL check karein.','r');}
+}
+
+// ═══════ WHATSAPP ════════════════════════════════════════════
+async function sendWhatsApp(){
+  const wa=getWA();
+  if(!wa.num&&!wa.group){toast('Settings mein WhatsApp number ya Group ID daalen!','r');switchTab('settings');return;}
+  const msg=document.getElementById('waPreview').textContent||'Eolith Production Update';
+  await sendWAMsg(msg);
+}
+async function sendWAMsg(msg){
+  const wa=getWA();
+  const url=`https://api.green-api.com/waInstance${CFG.waId}/sendMessage/${CFG.waToken}`;
+  const targets=[];
+  if(wa.num) targets.push(wa.num.replace(/\D/g,'')+'@c.us');
+  if(wa.group) targets.push(wa.group);
+  if(!targets.length){toast('WhatsApp number ya group ID settings mein daalen!','r');return;}
+  toast('WhatsApp bhej raha hai...','');
+  try{
+    for(const chatId of targets){
+      await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({chatId,message:msg})});
+    }
+    toast('✅ WhatsApp message bhej diya!','g');
+  }catch(e){toast('❌ WhatsApp error: '+e.message,'r');}
+}
+
+// ═══════ DISPATCH MONTHLY STATUS ══════════════════════════════
+let dispatchStatusData=[];
+
+async function loadDispatchStatus(){
+  if(!CFG.scriptUrl||CFG.scriptUrl.includes('PLACEHOLDER')){
+    document.getElementById('dispatchStatusWrap').innerHTML=
+      '<div class="warn-box">⚠ Apps Script URL set nahi hai. HTML code mein update karein.</div>';
+    return;
+  }
+  document.getElementById('dispatchStatusWrap').innerHTML='<div class="warn-box">⏳ Sheet se data load ho raha hai...</div>';
+  try{
+    const res=await fetch(CFG.scriptUrl+'?action=getDispatchStatus');
+    const d=await res.json();
+    if(d.status==='ok'&&d.data&&d.data.length>1){
+      dispatchStatusData=d.data;
+      renderDispatchStatusTable(d.data);
+    } else {
+      document.getElementById('dispatchStatusWrap').innerHTML=
+        '<div class="warn-box">⚠ Sheet mein koi data nahi hai ya "Dispatch Monthly Planning Status" tab nahi bana. "+ Add Entry" se entry add karein.</div>';
+    }
+  }catch(e){
+    document.getElementById('dispatchStatusWrap').innerHTML=
+      `<div class="warn-box">❌ Sheet se connect nahi ho saka. Apps Script URL check karein.<br><small>${e.message}</small></div>`;
+  }
+}
+
+function renderDispatchStatusTable(data){
+  if(!data||data.length<2){
+    document.getElementById('dispatchStatusWrap').innerHTML='<div class="warn-box">Koi data nahi hai.</div>';
+    return;
+  }
+  const headers=data[0];
+  const rows=data.slice(1);
+
+  // Status columns (8=ProdStatus, 9=PackStatus, 10=DispStatus — 0-indexed from headers)
+  const prodIdx=headers.indexOf('Production Status');
+  const packIdx=headers.indexOf('Packing Status');
+  const dispIdx=headers.indexOf('Dispatch Status');
+
+  let html=`<div style="overflow-x:auto;"><table class="ds-tbl"><thead><tr>
+    <th>#</th>${headers.map(h=>`<th>${h}</th>`).join('')}<th>Update</th>
+  </tr></thead><tbody>`;
+
+  rows.forEach((row,ri)=>{
+    const rowIdx=ri+2; // 1-based with header
+    const sbMap={
+      'Done':'sb-done','Not Done':'sb-notdone','In Progress':'sb-partial',
+      'Partial':'sb-partial','Dispatched':'sb-done','Pending':'sb-pending',
+      'Delayed':'sb-notdone','Ready':'sb-done'
+    };
+    html+=`<tr>`;
+    html+=`<td style="color:var(--stone);font-weight:700;">${ri+1}</td>`;
+    row.forEach((cell,ci)=>{
+      const isProdStat=headers[ci]==='Production Status';
+      const isPackStat=headers[ci]==='Packing Status';
+      const isDispStat=headers[ci]==='Dispatch Status';
+      if(isProdStat||isPackStat||isDispStat){
+        const opts=isProdStat?
+          ['Done','Not Done','In Progress','Partial']:
+          isPackStat?['Done','Not Done','In Progress']:
+          ['Dispatched','Pending','Delayed','Ready'];
+        html+=`<td><select class="status-sel" onchange="updateStatus(${rowIdx},${ci+1},this.value)">
+          ${opts.map(o=>`<option ${cell===o?'selected':''}>${o}</option>`).join('')}
+        </select></td>`;
+      } else {
+        const sbCls=sbMap[cell]||'';
+        html+=`<td>${sbCls?`<span class="sb ${sbCls}">${cell}</span>`:cell||'—'}</td>`;
+      }
+    });
+    html+=`<td><button onclick="deleteStatusRow(${rowIdx})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:.9rem;" title="Delete">🗑</button></td>`;
+    html+=`</tr>`;
+  });
+  html+=`</tbody></table></div>`;
+  document.getElementById('dispatchStatusWrap').innerHTML=html;
+}
+
+async function updateStatus(rowIndex, colIndex, value){
+  if(!CFG.scriptUrl||CFG.scriptUrl.includes('PLACEHOLDER')) return;
+  try{
+    const res=await fetch(CFG.scriptUrl,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'updateDispatchStatus',updateType:'updateStatus',
+        rowIndex, colUpdates:{[colIndex]:value}})});
+    const d=await res.json();
+    if(d.status==='ok') toast('✅ Status update ho gaya!','g');
+    else toast('❌ Error: '+d.msg,'r');
+  }catch(e){toast('❌ Update failed: '+e.message,'r');}
+}
+
+async function deleteStatusRow(rowIndex){
+  if(!confirm('Yeh row delete karna chahte hain?')) return;
+  try{
+    const res=await fetch(CFG.scriptUrl,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'updateDispatchStatus',updateType:'deleteRow',rowIndex})});
+    const d=await res.json();
+    if(d.status==='ok'){toast('✅ Row delete ho gayi!','g');loadDispatchStatus();}
+    else toast('❌ Error: '+d.msg,'r');
+  }catch(e){toast('❌ Delete failed: '+e.message,'r');}
+}
+
+// ═══════ ADD STATUS MODAL ════════════════════════════════════
+function openAddStatusModal(){
+  // Pre-fill from last calculation if available
+  if(lastResults.length){
+    const today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric'});
+    document.getElementById('ms_planDate').value=today;
+  }
+  document.getElementById('addStatusModal').classList.add('show');
+}
+function closeModal(){document.getElementById('addStatusModal').classList.remove('show');}
+
+async function saveStatusEntry(){
+  const rowData=[
+    document.getElementById('ms_planDate').value,
+    document.getElementById('ms_dispDate').value,
+    document.getElementById('ms_party').value,
+    document.getElementById('ms_size').value,
+    document.getElementById('ms_desc').value,
+    document.getElementById('ms_orderQty').value,
+    document.getElementById('ms_balQty').value,
+    document.getElementById('ms_prodStatus').value,
+    document.getElementById('ms_packStatus').value,
+    document.getElementById('ms_dispStatus').value
+  ];
+  if(!rowData[2]){toast('Party name zaroor bharen!','r');return;}
+  if(!CFG.scriptUrl||CFG.scriptUrl.includes('PLACEHOLDER')){
+    toast('Apps Script URL set nahi hai!','r');return;
+  }
+  try{
+    const res=await fetch(CFG.scriptUrl,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'updateDispatchStatus',updateType:'addRow',rowData})});
+    const d=await res.json();
+    if(d.status==='ok'){
+      toast('✅ Entry add ho gayi!','g');
+      closeModal();
+      loadDispatchStatus();
+    } else toast('❌ Error: '+d.msg,'r');
+  }catch(e){toast('❌ Save failed: '+e.message,'r');}
+}
+
+// ═══════ DISPATCH WA ════════════════════════════════════════
+async function sendDispatchWA(){
+  const wa=getWA();
+  if(!wa.num&&!wa.group){toast('Settings mein number/group daalen!','r');return;}
+  let msg=`🚚 *EOLITH — DISPATCH MONTHLY STATUS*\n📅 ${new Date().toLocaleDateString('en-IN')}\n${'─'.repeat(28)}\n\n`;
+  if(dispatchStatusData.length>1){
+    const headers=dispatchStatusData[0];
+    dispatchStatusData.slice(1).forEach((row,i)=>{
+      const dispSt=row[headers.indexOf('Dispatch Status')]||'';
+      const icon=dispSt==='Dispatched'?'✅':dispSt==='Pending'?'🟡':dispSt==='Ready'?'🟢':'🔴';
+      msg+=`${i+1}. ${icon} *${row[headers.indexOf('Party Name')]||''}*\n`;
+      msg+=`   📦 ${row[headers.indexOf('Material Size(mm)')]||''}mm | Qty: ${row[headers.indexOf('Order Quantity')]||''} Sq Ft\n`;
+      msg+=`   🗓 Dispatch: ${row[headers.indexOf('Dispatch Date')]||''} | Status: ${dispSt}\n\n`;
+    });
+  } else msg+='Koi dispatch entry nahi hai.\n';
+  msg+=`_Eolith Natural Stone Pvt Ltd | MIS: ${CFG.mis}_`;
+  await sendWAMsg(msg);
+}
+
+// ═══════ TEST CONNECTIONS ════════════════════════════════════
+async function testSheet(){
+  if(!CFG.scriptUrl||CFG.scriptUrl.includes('PLACEHOLDER')){
+    document.getElementById('testResult').innerHTML='<span style="color:var(--red);">❌ Apps Script URL set nahi hai. HTML code mein CFG.scriptUrl update karein.</span>';
+    return;
+  }
+  document.getElementById('testResult').innerHTML='⏳ Testing...';
+  try{
+    const res=await fetch(CFG.scriptUrl);
+    const d=await res.json();
+    if(d.status==='ok'){
+      document.getElementById('testResult').innerHTML=`<span style="color:var(--green);">✅ Sheet Connected! Tabs: ${d.sheets.join(', ')}</span>`;
+      toast('Sheet connected! ✅','g');
+    } else {
+      document.getElementById('testResult').innerHTML=`<span style="color:var(--red);">❌ Error: ${d.msg}</span>`;
+    }
+  }catch(e){
+    document.getElementById('testResult').innerHTML=`<span style="color:var(--red);">❌ Failed: ${e.message}</span>`;
+  }
+}
+async function testWA(){
+  const wa=getWA();
+  if(!wa.num){toast('Settings mein number daalen pehle!','r');return;}
+  await sendWAMsg(`✅ Eolith Production Planner v4 — WhatsApp test successful!\nMIS: ${CFG.mis}`);
+}
+
+// ═══════ HISTORY ════════════════════════════════════════════
+function saveHistory(results,totalQty,maxHrs){
+  const hist=JSON.parse(localStorage.getItem('eolith_hist')||'[]');
+  hist.unshift({ts:new Date().toLocaleString('en-IN'),totalQty,maxHrs:Math.round(maxHrs*10)/10,
+    orders:results.map(r=>({size:r.size,bc:r.bc,qty:r.qty,hAvg:Math.round(r.hAvg*10)/10}))});
+  if(hist.length>5)hist.splice(5);
+  localStorage.setItem('eolith_hist',JSON.stringify(hist));
+}
+function renderHistory(){
+  const hist=JSON.parse(localStorage.getItem('eolith_hist')||'[]');
+  const el=document.getElementById('histList');
+  if(!el)return;
+  if(!hist.length){el.innerHTML='<p style="font-size:.75rem;color:var(--stone);">Koi history nahi hai.</p>';return;}
+  el.innerHTML=hist.map((h,i)=>`
+    <div class="hist-item">
+      <div class="hist-hdr" onclick="toggleHist(${i})">
+        <div class="hist-title">📋 ${h.ts} — ${h.orders.length} Orders · ${(h.totalQty||0).toLocaleString()} Sq Ft</div>
+        <div class="hist-time">⏱ ${h.maxHrs}h</div>
+      </div>
+      <div class="hist-body" id="hb_${i}">
+        ${h.orders.map((o,j)=>`<div class="hr"><strong>${j+1}.</strong> ${o.bc} · <strong>${o.size}mm</strong> · ${(o.qty||0).toLocaleString()} SqFt · ${o.hAvg}h</div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+function toggleHist(i){const el=document.getElementById('hb_'+i);if(el)el.classList.toggle('open');}
+function clearHistory(){localStorage.removeItem('eolith_hist');renderHistory();}
+
+// ═══════ TOAST ═══════════════════════════════════════════════
+function toast(msg,type){
+  const w=document.getElementById('toastWrap');
+  const d=document.createElement('div');
+  d.className='toast'+(type?' '+type:'');
+  d.textContent=msg; w.appendChild(d);
+  requestAnimationFrame(()=>d.classList.add('show'));
+  setTimeout(()=>{d.classList.remove('show');setTimeout(()=>d.remove(),350);},3500);
+}
+
+// ═══════ SCRIPT CODE DISPLAY ═════════════════════════════════
+function copyScriptCode(){
+  const el=document.getElementById('scriptCodeBox');
+  el.select();document.execCommand('copy');
+  toast('Code copy ho gaya! Apps Script mein paste karein.','g');
+}
+
+// ═══════ INIT ════════════════════════════════════════════════
+const EXAMPLE=[
+  {sz:'20',bc:'BC3',qty:3500},{sz:'20',bc:'BC7',qty:3500},{sz:'20',bc:'BC8',qty:3500},
+  {sz:'30',bc:'BC2',qty:1000},{sz:'50',bc:'BC4',qty:1000},{sz:'150',bc:'BC1',qty:500}
+];
+EXAMPLE.forEach(e=>{
+  addRow();const id=rowCount;
+  document.getElementById('sz_'+id).value=e.sz;
+  document.getElementById('bc_'+id).value=e.bc;
+  document.getElementById('qty_'+id).value=e.qty;
+  syncMM(id);
+});
+loadWASettings();
+renderHistory();
+
+// Script code box mein content load karo
+document.getElementById('scriptCodeBox').value = `// EOLITH Apps Script FINAL — Copy from eolith_apps_script_FINAL.gs file`;
+</script>
+</body>
+</html>'''
+
+<!-- html = html.replace('LOGO_SRC', logo_src)
+html = html.replace('APPS_SCRIPT_URL_PLACEHOLDER', APPS_SCRIPT_URL)
+
+with open('/mnt/user-data/outputs/eolith_planner_v4.html', 'w') as f:
+    f.write(html)
+print("Done:", len(html))
+PYEOF
+python3 /home/claude/build_v4.py -->
